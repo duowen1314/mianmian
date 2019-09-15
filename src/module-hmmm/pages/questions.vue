@@ -1,6 +1,7 @@
 <template>
   <div class="dashboard-container">
     <div class="app-container">
+      <el-button type="primary">新增</el-button>
       <el-form ref="searchFormRef" :model="searchForm">
         <el-row>
           <el-col :span="6">
@@ -91,6 +92,10 @@
             </el-select>
           </el-col>
           <el-col :span="7">
+            关键字
+            <el-input type="text" placeholder="请输入关键字" v-model="searchForm.keyword" style="width:150px;"></el-input>
+          </el-col>
+          <el-col :span="7">
             二级目录
             <el-select v-model="searchForm.catalogIDL" placeholder="请输入二级目录" style="width:130px;">
               <el-option
@@ -102,29 +107,37 @@
             </el-select>
           </el-col>
         </el-row>
+        <el-row style="text-align:right;margin-bottom:20px;">
+           <el-button>清除</el-button>
+            <el-button type="primary" @click="getQuestionsList()">搜索</el-button>
+        </el-row>
       </el-form>
       <el-table :data="questionsList" style="width:100%">
         <el-table-column label="序号" type="index"></el-table-column>
         <el-table-column label="试题编号" prop="number"></el-table-column>
-        <el-table-column label="学科" prop="subject"></el-table-column>
-        <el-table-column label="题型" prop="questionType"></el-table-column>
+        <el-table-column label="学科" prop="subjectID"></el-table-column>
+        <el-table-column label="题型" :formatter="questionTypeFMT"  prop="questionType"></el-table-column>
         <el-table-column label="题干" prop="question"></el-table-column>
-        <el-table-column label="录入时间">
+        <el-table-column label="录入时间" prop="addDate">
            <template slot-scope="stData">
-              <span style="margin-left: 10px">{{ stData.row.addDate }}</span>
+              <span style="margin-left: 10px">{{ stData.row.addDate | parseTimeByString }}</span>
            </template>
         </el-table-column>
-        <el-table-column label="难度" prop="difficulty"></el-table-column>
+        <el-table-column label="难度" :formatter="difficultyFMT" prop="difficulty"></el-table-column>
         <el-table-column label="录入人" prop="creator"></el-table-column>
         <el-table-column label="操作" width="200">
-          <template slot-scope="">
+          <template slot-scope="stData">
             <a href="#">预览</a>
             <a href="#">修改</a>
-            <a href="#">删除</a>
+            <a href="#" @click.prevent="delList(stData.row)">删除</a>
             <a href="#">加入精选</a>
           </template>
         </el-table-column>
       </el-table>
+   <el-row type="flex" justify="center">
+        <el-pagination :current-page="searchForm.page" :page-size="searchForm.pagesize" background layout="prev, pager, next" :total="searchForm.total">
+        </el-pagination>
+   </el-row>
     </div>
   </div>
 </template>
@@ -140,7 +153,7 @@ import { list as tagsList } from '@/api/hmmm/tags' // 标签模块
 import { provinces, citys } from '@/api/hmmm/citys' // 城市模块
 import { simple as usersSimple } from '@/api/base/users' // 录入人
 import { simple as directorySimple } from '@/api/hmmm/directorys' // 二级目录
-import { list as questionsList } from '@/api/hmmm/questions'
+import { list as questionsList, remove as questionsRemove } from '@/api/hmmm/questions'
 
 export default {
   name: 'QuestionsList',
@@ -177,9 +190,28 @@ export default {
     },
     // 获得基础题库列表
     async getQuestionsList() {
-      var res = await questionsList()
+      // alert(1)
+      var res = await questionsList(this.searchForm)
       console.log(res)
+      this.searchForm.total = res.data.pages
       this.questionsList = res.data.items
+    },
+    // 题型数字转汉字
+    questionTypeFMT(row, column, cellValue) {
+      // console.log(cellValue)
+      return this.questionTypeList[cellValue - 1]['label']
+    },
+    // 难度数字转汉字
+    difficultyFMT(row, column, cellValue) {
+        return this.difficultyList[cellValue - 1]['label']
+    },
+    // 删除
+    delList(item) {
+      this.$confirm('你确定要删除吗？').then(() => {
+        questionsRemove(item)
+        this.getQuestionsList()
+      })
+      
     }
 
   },
@@ -209,7 +241,11 @@ export default {
         shortName: '', // 企业检查
         direction: '', // 方向
         creatorID: '', // 录入人
-        catalogIDL: '' // 二级目录
+        catalogIDL: '', // 二级目录
+        keyword: '', // 关键字
+        page: 1, // 当前页数
+        pagesize: 10, // 每页条数
+        total: 1
       }
     }
   },
